@@ -1,55 +1,52 @@
 package api
 
 import (
-	"net/http"
-
+	"log"
 	"lucasbonna/pulse/db"
-	"lucasbonna/pulse/internal/api/handlers"
 	"lucasbonna/pulse/internal/api/routes"
+	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// Server holds all dependencies for the HTTP server
 type Server struct {
 	db *db.Queries
 }
 
-// NewServer creates a new HTTP server with dependencies
 func NewServer(database *db.Queries) *Server {
 	return &Server{
 		db: database,
 	}
 }
 
-// SetupRoutes configures all routes with their dependencies
-func (s *Server) SetupRoutes() http.Handler {
+func (s *Server) startRoutes() http.Handler {
 	r := chi.NewRouter()
 
-	// Middleware
+	// Middlewares
+
+	jobResource := routes.NewJobResource(s.db)
+
+	r.Mount("/jobs", jobResource.Routes())
+
+	return r
+}
+
+func (s *Server) Start(port string) error {
+	r := chi.NewRouter()
+
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.AllowContentType("application/json"))
 	r.Use(middleware.CleanPath)
 	r.Use(middleware.RedirectSlashes)
 
-	// Health check
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World"))
-	})
+	r.Mount("/api", s.startRoutes())
 
-	// Initialize handlers with dependencies
-	jobsHandler := handlers.NewJobsHandler(s.db)
+	log.Println("starting http server on port ", port)
+	if err := http.ListenAndServe(port, r); err != nil {
+		return err
+	}
 
-	// Mount routes
-	r.Mount("/jobs", routes.JobsRoutes(jobsHandler))
-
-	return r
-}
-
-// Start starts the HTTP server
-func (s *Server) Start(addr string) error {
-	handler := s.SetupRoutes()
-	return http.ListenAndServe(addr, handler)
+	return nil
 }

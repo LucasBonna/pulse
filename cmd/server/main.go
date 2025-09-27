@@ -8,18 +8,16 @@ import (
 )
 
 func main() {
-	// Initialize database
-	db, err := storage.NewSQLiteDB()
+	dbInstance, err := storage.NewSQLiteDB()
 	if err != nil {
-		log.Fatal("Failed to initialize database:", err)
+		log.Fatal("error creating db")
 	}
 
-	// Initialize HTTP server with dependencies
-	server := api.NewServer(db)
+	httpServer := api.NewServer(dbInstance)
 
-	// Start server
-	log.Println("Starting server on :8080...")
-	if err := server.Start(":8080"); err != nil {
-		log.Fatal("Failed to start server:", err)
+	err = httpServer.Start(":3333")
+	if err != nil {
+		log.Fatal("error starting http server at port 3333", err)
 	}
+
 }
