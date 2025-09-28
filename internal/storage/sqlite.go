@@ -16,10 +16,14 @@ var ddl string
 func NewSQLiteDB() (*db.Queries, error) {
 	ctx := context.Background()
 
-	startedDb, err := sql.Open("sqlite", "db.sqlite")
+	startedDb, err := sql.Open("sqlite", "db.sqlite?_journal=WAL&_timeout=5000&_synchronous=NORMAL")
 	if err != nil {
 		return nil, err
 	}
+
+	startedDb.SetMaxOpenConns(1)
+	startedDb.SetMaxIdleConns(1)
+	startedDb.SetConnMaxLifetime(0)
 
 	if _, err := startedDb.ExecContext(ctx, ddl); err != nil {
 		return nil, err

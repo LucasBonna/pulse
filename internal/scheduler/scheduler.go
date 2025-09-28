@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"lucasbonna/pulse/db"
@@ -57,13 +58,15 @@ func (s *Scheduler) run(ctx context.Context) {
 }
 
 func (s *Scheduler) checkAndRunJobs(ctx context.Context) {
-	jobs, err := s.getDueJobs(ctx)
+	log.Println("checking for jobs to run")
+	jobs, err := s.db.GetDueJobs(ctx)
 	if err != nil {
 		log.Printf("error getting due jobs: %v", err)
 		return
 	}
 
 	for _, job := range jobs {
+		log.Printf("job %d (%s) found, checking before running...", job.ID, job.Name)
 		if s.isJobRunning(job.ID) {
 			log.Printf("Job %d (%s) is already running, skipping", job.ID, job.Name)
 			continue
@@ -75,7 +78,7 @@ func (s *Scheduler) checkAndRunJobs(ctx context.Context) {
 }
 
 func (s *Scheduler) isJobRunning(jobID int64) bool {
-	s.mutex.Lock()
+	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.runningJobs[jobID]
 }
@@ -96,15 +99,46 @@ func (s *Scheduler) executeJob(ctx context.Context, job db.Job) {
 
 	log.Printf("executing job %d: %s %s", job.ID, job.Method, job.Url)
 
-	statusCode, err := s.makeHTTPRequest(job)
+	startTime := time.Now()
+
+	// jobRun, err := s.db.CreateJobRun(ctx, db.CreateJobRunParams{
+	// 	JobID:     job.ID,
+	// 	Status:    sql.NullString{String: "running", Valid: true},
+	// 	StartedAt: sql.NullTime{Time: startTime, Valid: true},
+	// })
+	// if err != nil {
+	// 	log.Printf("Failed to create job run record: %v", err)
+	// 	return
+	// }
+
+	_, err := s.makeHTTPRequest(job)
+	finishTime := time.Now()
+
+	status := "success"
 	if err != nil {
-		log.Printf("error executing job %d", err)
+		status = "failed"
+		log.Printf("error executing job %d: %v", job.ID, err)
 	}
 
-	nextRun := time.Now().Add(time.Duration(job.IntervalSeconds) * time.Second)
-	s.updateJobNextRun(ctx, job.ID, nextRun)
+	// s.db.UpdateJobRun(ctx, db.UpdateJobRunParams{
+	// 	ID:           jobRun.ID,
+	// 	Status:       sql.NullString{String: status, Valid: true},
+	// 	ResponseCode: sql.NullInt64{Int64: int64(statusCode), Valid: true},
+	// 	ResponseBody: sql.NullString{String: "", Valid: false},
+	// 	FinishedAt:   sql.NullTime{Time: finishTime, Valid: true},
+	// })
 
-	log.Printf("job %d completed with statusCode %v", job.ID, statusCode)
+	currentTime := time.Now()
+
+	duration := time.Duration(job.IntervalSeconds) * time.Second
+
+	nextRun := currentTime.Add(duration).UTC()
+	s.db.UpdateJobNextRun(ctx, db.UpdateJobNextRunParams{
+		ID:        job.ID,
+		NextRunAt: sql.NullTime{Time: nextRun, Valid: true},
+	})
+
+	log.Printf("job %d completed with status %s in %v", job.ID, status, finishTime.Sub(startTime))
 }
 
 func (s *Scheduler) makeHTTPRequest(job db.Job) (int, error) {
@@ -117,6 +151,7 @@ func (s *Scheduler) makeHTTPRequest(job db.Job) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("request failed: %w", err)
 	}
+	defer resp.Body.Close()
 
 	return resp.StatusCode, nil
 }

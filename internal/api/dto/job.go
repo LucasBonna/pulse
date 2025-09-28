@@ -18,7 +18,7 @@ type CreateJobResponse struct {
 	Method          string     `json:"method"`
 	Headers         *string    `json:"headers"`
 	IntervalSeconds int64      `json:"interval_seconds"`
-	NextRunAt       *time.Time `json:"next_runt_at"`
+	NextRunAt       *time.Time `json:"next_run_at"`
 	Active          *bool      `json:"active"`
 }
 

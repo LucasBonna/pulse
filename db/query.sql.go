@@ -53,6 +53,43 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 	return i, err
 }
 
+const createJobRun = `-- name: CreateJobRun :one
+INSERT INTO job_runs (job_id, status, started_at)
+VALUES (?, ?, ?)
+RETURNING id, job_id, status, response_code, response_body, started_at, finished_at
+`
+
+type CreateJobRunParams struct {
+	JobID     int64
+	Status    sql.NullString
+	StartedAt sql.NullTime
+}
+
+func (q *Queries) CreateJobRun(ctx context.Context, arg CreateJobRunParams) (JobRun, error) {
+	row := q.db.QueryRowContext(ctx, createJobRun, arg.JobID, arg.Status, arg.StartedAt)
+	var i JobRun
+	err := row.Scan(
+		&i.ID,
+		&i.JobID,
+		&i.Status,
+		&i.ResponseCode,
+		&i.ResponseBody,
+		&i.StartedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
+const deleteJob = `-- name: DeleteJob :exec
+DELETE FROM jobs
+WHERE id = ?
+`
+
+func (q *Queries) DeleteJob(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteJob, id)
+	return err
+}
+
 const getAllJobs = `-- name: GetAllJobs :many
 SELECT id, name, url, method, headers, interval_seconds, next_run_at, active FROM jobs
 ORDER BY id
@@ -88,4 +125,85 @@ func (q *Queries) GetAllJobs(ctx context.Context) ([]Job, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getDueJobs = `-- name: GetDueJobs :many
+SELECT id, name, url, method, headers, interval_seconds, next_run_at, active FROM jobs
+WHERE active = 1
+  AND next_run_at IS NOT NULL
+  AND next_run_at <= datetime('now')
+ORDER BY next_run_at ASC
+`
+
+func (q *Queries) GetDueJobs(ctx context.Context) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getDueJobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Url,
+			&i.Method,
+			&i.Headers,
+			&i.IntervalSeconds,
+			&i.NextRunAt,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateJobNextRun = `-- name: UpdateJobNextRun :exec
+UPDATE jobs
+SET next_run_at = ?
+WHERE id = ?
+`
+
+type UpdateJobNextRunParams struct {
+	NextRunAt sql.NullTime
+	ID        int64
+}
+
+func (q *Queries) UpdateJobNextRun(ctx context.Context, arg UpdateJobNextRunParams) error {
+	_, err := q.db.ExecContext(ctx, updateJobNextRun, arg.NextRunAt, arg.ID)
+	return err
+}
+
+const updateJobRun = `-- name: UpdateJobRun :exec
+UPDATE job_runs
+SET status = ?, response_code = ?, response_body = ?, finished_at = ?
+WHERE id = ?
+`
+
+type UpdateJobRunParams struct {
+	Status       sql.NullString
+	ResponseCode sql.NullInt64
+	ResponseBody sql.NullString
+	FinishedAt   sql.NullTime
+	ID           int64
+}
+
+func (q *Queries) UpdateJobRun(ctx context.Context, arg UpdateJobRunParams) error {
+	_, err := q.db.ExecContext(ctx, updateJobRun,
+		arg.Status,
+		arg.ResponseCode,
+		arg.ResponseBody,
+		arg.FinishedAt,
+		arg.ID,
+	)
+	return err
 }

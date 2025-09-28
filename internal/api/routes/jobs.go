@@ -9,6 +9,7 @@ import (
 	"lucasbonna/pulse/internal/api/middleware"
 	"lucasbonna/pulse/internal/utils"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -31,7 +32,7 @@ func (js JobsResource) Routes() http.Handler {
 
 	r.Get("/", js.GetAllJobs)
 	r.With(middleware.ValidateBody(js.validation, dto.CreateJobRequest{})).Post("/", js.CreateJob)
-
+	r.Delete("/{id}", js.DeleteJob)
 	return r
 }
 
@@ -48,6 +49,23 @@ func (js JobsResource) GetAllJobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, http.StatusOK, jobResponses)
+}
+
+func (js JobsResource) DeleteJob(w http.ResponseWriter, r *http.Request) {
+	jobIDStr := chi.URLParam(r, "id")
+	jobID, err := strconv.ParseInt(jobIDStr, 10, 64)
+	if err != nil {
+		utils.WriteJsonError(w, http.StatusBadRequest, "invalid job ID")
+		return
+	}
+
+	err = js.db.DeleteJob(context.Background(), jobID)
+	if err != nil {
+		utils.WriteJsonError(w, http.StatusInternalServerError, "failed to delete job")
+		return
+	}
+
+	utils.WriteJsonResponse(w, http.StatusOK, "job deleted")
 }
 
 func (js JobsResource) CreateJob(w http.ResponseWriter, r *http.Request) {

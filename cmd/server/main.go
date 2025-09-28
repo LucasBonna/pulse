@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"lucasbonna/pulse/internal/api"
+	"lucasbonna/pulse/internal/scheduler"
 	"lucasbonna/pulse/internal/storage"
 )
 
@@ -12,6 +14,10 @@ func main() {
 	if err != nil {
 		log.Fatal("error creating db")
 	}
+
+	jobScheduler := scheduler.NewScheduler(dbInstance)
+	jobScheduler.Start(context.Background())
+	defer jobScheduler.Stop()
 
 	httpServer := api.NewServer(dbInstance)
 
