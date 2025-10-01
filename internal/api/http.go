@@ -3,7 +3,9 @@ package api
 import (
 	"log"
 	"lucasbonna/pulse/db"
+	internal_middleware "lucasbonna/pulse/internal/api/middleware"
 	"lucasbonna/pulse/internal/api/routes"
+	"lucasbonna/pulse/internal/config"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,19 +13,19 @@ import (
 )
 
 type Server struct {
-	db *db.Queries
+	db     *db.Queries
+	config *config.Env
 }
 
-func NewServer(database *db.Queries) *Server {
+func NewServer(database *db.Queries, config *config.Env) *Server {
 	return &Server{
-		db: database,
+		db:     database,
+		config: config,
 	}
 }
 
 func (s *Server) startRoutes() http.Handler {
 	r := chi.NewRouter()
-
-	// Middlewares
 
 	jobResource := routes.NewJobResource(s.db)
 
@@ -32,7 +34,7 @@ func (s *Server) startRoutes() http.Handler {
 	return r
 }
 
-func (s *Server) Start(port string) error {
+func (s *Server) Start() error {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -41,10 +43,12 @@ func (s *Server) Start(port string) error {
 	r.Use(middleware.CleanPath)
 	r.Use(middleware.RedirectSlashes)
 
+	r.Use(internal_middleware.AuthenticationMiddleware(s.config.Token))
+
 	r.Mount("/api", s.startRoutes())
 
-	log.Println("starting http server on port ", port)
-	if err := http.ListenAndServe(port, r); err != nil {
+	log.Println("starting http server on port ", s.config.Port)
+	if err := http.ListenAndServe(s.config.Port, r); err != nil {
 		return err
 	}
 

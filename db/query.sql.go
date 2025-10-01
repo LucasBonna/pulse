@@ -167,6 +167,67 @@ func (q *Queries) GetDueJobs(ctx context.Context) ([]Job, error) {
 	return items, nil
 }
 
+const getJobByID = `-- name: GetJobByID :one
+SELECT id, name, url, method, headers, interval_seconds, next_run_at, active FROM jobs WHERE id = ? LIMIT 1
+`
+
+func (q *Queries) GetJobByID(ctx context.Context, id int64) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getJobByID, id)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Url,
+		&i.Method,
+		&i.Headers,
+		&i.IntervalSeconds,
+		&i.NextRunAt,
+		&i.Active,
+	)
+	return i, err
+}
+
+const updateJob = `-- name: UpdateJob :one
+UPDATE jobs
+SET name = ?, url = ?, method = ?, headers = ?, interval_seconds = ?, active = ?
+WHERE id = ?
+RETURNING id, name, url, method, headers, interval_seconds, next_run_at, active
+`
+
+type UpdateJobParams struct {
+	Name            string
+	Url             string
+	Method          interface{}
+	Headers         sql.NullString
+	IntervalSeconds int64
+	Active          sql.NullBool
+	ID              int64
+}
+
+func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (Job, error) {
+	row := q.db.QueryRowContext(ctx, updateJob,
+		arg.Name,
+		arg.Url,
+		arg.Method,
+		arg.Headers,
+		arg.IntervalSeconds,
+		arg.Active,
+		arg.ID,
+	)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Url,
+		&i.Method,
+		&i.Headers,
+		&i.IntervalSeconds,
+		&i.NextRunAt,
+		&i.Active,
+	)
+	return i, err
+}
+
 const updateJobNextRun = `-- name: UpdateJobNextRun :exec
 UPDATE jobs
 SET next_run_at = ?

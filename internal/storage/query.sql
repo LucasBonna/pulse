@@ -1,3 +1,12 @@
+-- name: GetJobByID :one
+SELECT * FROM jobs WHERE id = ? LIMIT 1;
+
+-- name: UpdateJob :one
+UPDATE jobs
+SET name = ?, url = ?, method = ?, headers = ?, interval_seconds = ?, active = ?
+WHERE id = ?
+RETURNING *;
+
 -- name: GetAllJobs :many
 SELECT * FROM jobs
 ORDER BY id;

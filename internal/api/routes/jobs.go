@@ -32,6 +32,7 @@ func (js JobsResource) Routes() http.Handler {
 
 	r.Get("/", js.GetAllJobs)
 	r.With(middleware.ValidateBody(js.validation, dto.CreateJobRequest{})).Post("/", js.CreateJob)
+	r.With(middleware.ValidateBody(js.validation, dto.UpdateJobRequest{})).Patch("/{id{", js.UpdateJob)
 	r.Delete("/{id}", js.DeleteJob)
 	return r
 }
@@ -87,6 +88,74 @@ func (js JobsResource) CreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, http.StatusOK, fromDBJob(createdJob))
+}
+
+func (js JobsResource) UpdateJob(w http.ResponseWriter, r *http.Request) {
+	jobIdStr := chi.URLParam(r, "id")
+	jobID, err := strconv.ParseInt(jobIdStr, 10, 64)
+	if err != nil {
+		utils.WriteJsonError(w, http.StatusBadRequest, "invalid job ID")
+		return
+	}
+
+	data := middleware.GetValidatedData[dto.UpdateJobRequest](r)
+
+	currentJob, err := js.db.GetJobByID(context.Background(), jobID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.WriteJsonError(w, http.StatusNotFound, "job not found")
+			return
+		}
+		utils.WriteJsonError(w, http.StatusInternalServerError, "failed to fetch job")
+		return
+	}
+
+	name := currentJob.Name
+	if data.Name != "" {
+		name = data.Name
+	}
+
+	url := currentJob.Url
+	if data.URL != "" {
+		url = data.URL
+	}
+
+	method := currentJob.Method
+	if data.Method != "" {
+		method = data.Method
+	}
+
+	headers := currentJob.Headers
+	if data.Headers != "" {
+		headers = sql.NullString{String: data.Headers, Valid: true}
+	}
+
+	intervalSeconds := currentJob.IntervalSeconds
+	if data.IntervalSeconds != nil {
+		intervalSeconds = *data.IntervalSeconds
+	}
+
+	active := currentJob.Active
+	if data.Active != nil {
+		active = sql.NullBool{Bool: *data.Active, Valid: true}
+	}
+
+	updatedJob, err := js.db.UpdateJob(context.Background(), db.UpdateJobParams{
+		Name:            name,
+		Url:             url,
+		Method:          method,
+		Headers:         headers,
+		IntervalSeconds: intervalSeconds,
+		Active:          active,
+		ID:              jobID,
+	})
+	if err != nil {
+		log.Println("error updating job", err)
+		utils.WriteJsonError(w, http.StatusInternalServerError, "failed to update job")
+		return
+	}
+
+	utils.WriteJsonResponse(w, http.StatusOK, fromDBJob(updatedJob))
 }
 
 func fromDBJob(dbJob db.Job) dto.CreateJobResponse {
