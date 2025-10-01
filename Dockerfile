@@ -34,8 +34,14 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/passwd /etc/passwd
 
+# Create data directory for SQLite
+RUN mkdir -p /app/data && chown appuser:appuser /app/data
+
 # Copy the binary
-COPY --from=builder /build/pulse /pulse
+COPY --from=builder /build/pulse /app/pulse
+
+# Set working directory
+WORKDIR /app/data
 
 # Use appuser
 USER appuser
@@ -43,9 +49,9 @@ USER appuser
 # Expose port
 EXPOSE 8080
 
-# Health check
+# Health check (simple TCP check since we don't have health endpoint yet)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["/pulse", "health"] || exit 1
+    CMD timeout 3s sh -c 'nc -z localhost 8080' || exit 1
 
 # Run the binary
-ENTRYPOINT ["/pulse"]
+ENTRYPOINT ["/app/pulse"]
