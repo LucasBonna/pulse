@@ -27,12 +27,13 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     ./cmd/server/main.go
 
 # Final stage
-FROM scratch
+FROM alpine:latest
 
-# Import from builder
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-COPY --from=builder /etc/passwd /etc/passwd
+# Install ca-certificates for HTTPS requests
+RUN apk --no-cache add ca-certificates tzdata
+
+# Create appuser for security
+RUN adduser -D -g '' appuser
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data && chown appuser:appuser /app/data
