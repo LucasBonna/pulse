@@ -32,7 +32,7 @@ func (js JobsResource) Routes() http.Handler {
 
 	r.Get("/", js.GetAllJobs)
 	r.With(middleware.ValidateBody(js.validation, dto.CreateJobRequest{})).Post("/", js.CreateJob)
-	r.With(middleware.ValidateBody(js.validation, dto.UpdateJobRequest{})).Patch("/{id{", js.UpdateJob)
+	r.With(middleware.ValidateBody(js.validation, dto.UpdateJobRequest{})).Patch("/{id}", js.UpdateJob)
 	r.Delete("/{id}", js.DeleteJob)
 	return r
 }

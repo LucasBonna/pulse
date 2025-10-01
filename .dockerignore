@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Development files
+.air.toml
+tmp/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database files (if local)
+*.sqlite
+*.db
+
+# Test files
+*_test.go
+testdata/
+
+# Build artifacts
+pulse
+dist/
+build/
+
+# Dependencies (will be downloaded in container)
+vendor/
+
+# Coverage reports
+coverage.out
+*.cover
+
+# Temporary files
+*.tmp
+*.temp

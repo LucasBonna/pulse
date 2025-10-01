@@ -39,6 +39,9 @@ go.work
 ehthumbs.db
 Thumbs.db
 
+# DB files
+db.sqlite
+
 # Log files
 *.log
 

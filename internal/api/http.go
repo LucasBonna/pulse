@@ -48,7 +48,7 @@ func (s *Server) Start() error {
 	r.Mount("/api", s.startRoutes())
 
 	log.Println("starting http server on port ", s.config.Port)
-	if err := http.ListenAndServe(s.config.Port, r); err != nil {
+	if err := http.ListenAndServe(":"+s.config.Port, r); err != nil {
 		return err
 	}
 
