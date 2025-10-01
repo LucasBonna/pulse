@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"time"
 
 	_ "modernc.org/sqlite"
 
@@ -21,9 +22,9 @@ func NewSQLiteDB() (*db.Queries, error) {
 		return nil, err
 	}
 
-	startedDb.SetMaxOpenConns(1)
-	startedDb.SetMaxIdleConns(1)
-	startedDb.SetConnMaxLifetime(0)
+	startedDb.SetMaxOpenConns(10)
+	startedDb.SetMaxIdleConns(5)
+	startedDb.SetConnMaxLifetime(time.Hour)
 
 	if _, err := startedDb.ExecContext(ctx, ddl); err != nil {
 		return nil, err

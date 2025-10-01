@@ -22,8 +22,14 @@ type Scheduler struct {
 
 func NewScheduler(database *db.Queries) *Scheduler {
 	return &Scheduler{
-		db:          database,
-		httpClient:  &http.Client{},
+		db: database,
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 10,
+				IdleConnTimeout:     90 * time.Second,
+			},
+		},
 		runningJobs: make(map[int64]bool),
 		done:        make(chan bool),
 	}
