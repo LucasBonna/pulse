@@ -30,6 +30,7 @@ func AuthenticationMiddleware(validToken string) func(http.Handler) http.Handler
 
 			if token != validToken {
 				utils.WriteJsonError(w, http.StatusUnauthorized, "Invalid Token")
+				return
 			}
 
 			next.ServeHTTP(w, r)
