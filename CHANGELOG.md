@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/LucasBonna/pulse/compare/v1.0.0...v1.0.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* authentication middleware to return on invalid token ([94e055c](https://github.com/LucasBonna/pulse/commit/94e055ccc4850a3705af629a9dcdc6b0c7b02c38))
+* set default port and require TOKEN env variable ([8499e7c](https://github.com/LucasBonna/pulse/commit/8499e7c48ebf2d60fe0b7f64a647762869545f5b))
+
 ## 1.0.0 (2025-10-02)
 
 
